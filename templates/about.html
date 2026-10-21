@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>关于本页</title>
+  <link rel="icon" href="data:,">
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; margin: 40px auto; max-width: 720px; line-height: 1.8; color: #333; }
+    h1 { color: #1d4ed8; }
+    a { color: #1d4ed8; }
+  </style>
+</head>
+<body>
+  <h1>关于本页</h1>
+  <p>本页是 Flask 实验中的第二个路由 <code>/about</code>，用来演示一个 Flask 应用可以有多个页面。</p>
+  <ul>
+    <li><code>/</code>：数据可视化大屏，由 <code>app.py</code> 的 <code>index()</code> 返回</li>
+    <li><code>/about</code>：当前页面，由 <code>about()</code> 返回</li>
+    <li><code>/api/influenza</code>：返回 JSON 数据，供页面的 ECharts 图表使用</li>
+  </ul>
+  <p><a href="{{ url_for('index') }}">← 返回数据大屏</a></p>
+</body>
+</html>

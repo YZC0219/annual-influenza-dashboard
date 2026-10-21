@@ -1,0 +1,1 @@
+{"datasets":[{"id":"database","name":"流感教学演示数据 · 2021–2025","kind":"demo","source":"仓库 sql/init_influenza.sql 教学模拟数据快照 · 非官方疫情监测数据","updatedAt":null,"updatedAtLabel":"教学快照，无监测更新时间","derived":"地区与年龄组指标根据全国指标及既有系数推算。"}]}
