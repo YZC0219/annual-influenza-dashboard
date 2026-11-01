@@ -138,7 +138,13 @@
     };
   }
 
-  function matrix(payload, initial) {
+  // Leave room for axis labels on portrait screens; reset uses the same framing.
+  function fittedMatrixCamera(element) {
+    var width = element ? element.clientWidth : 800;
+    return Object.assign({}, camera, {distance: width < 480 ? 210 : width < 640 ? 180 : camera.distance});
+  }
+
+  function matrix(payload, initial, element) {
     var option = base();
     option.tooltip.trigger = 'item';
     option.tooltip.formatter = function (point) {
@@ -149,6 +155,9 @@
     option.xAxis3D = axis3D('地区', payload.regions || []);
     option.yAxis3D = axis3D('年度', payload.years || []);
     option.zAxis3D = axis3D('ILI（%）');
+    if (element && element.clientWidth < 480) {
+      option.xAxis3D.name = ''; option.yAxis3D.name = ''; option.zAxis3D.name = 'ILI%';
+    }
     option.zAxis3D.min = 0;
     option.grid3D = {
       boxWidth: 120, boxDepth: 65, boxHeight: 40,
@@ -158,7 +167,7 @@
       light: {main: {intensity: 1.15, shadow: false, alpha: 35, beta: 20}, ambient: {intensity: 0.65}},
       postEffect: {enable: false}, temporalSuperSampling: {enable: false}
     };
-    if (initial) option.grid3D.viewControl = Object.assign({}, camera);
+    if (initial) option.grid3D.viewControl = fittedMatrixCamera(element);
     var highest = maxValue((payload.data || []).map(function (item) { return item.value[2]; })) || 1;
     option.series = [{
       id: 'region-matrix', name: '年度地区 ILI', type: 'bar3D', shading: 'lambert',
@@ -367,7 +376,7 @@
     }
     var option;
     if (name === 'trend') option = trend(payload);
-    else if (name === 'matrix') option = record.fallback ? heatmap(payload, true) : matrix(payload, initial);
+    else if (name === 'matrix') option = record.fallback ? heatmap(payload, true) : matrix(payload, initial, element);
     else if (name === 'season') option = heatmap(payload, false);
     else if (name === 'age' || name === 'rank') option = horizontalBars(payload, name === 'age');
     else option = forecast(payload);
@@ -405,7 +414,7 @@
     Object.keys(instances).forEach(function (key) {
       var record = instances[key];
       if (record.name === 'matrix' && !record.fallback && !record.chart.isDisposed()) {
-        record.chart.setOption({grid3D: {viewControl: Object.assign({}, camera)}});
+        record.chart.setOption({grid3D: {viewControl: fittedMatrixCamera(record.element)}});
       }
     });
   }

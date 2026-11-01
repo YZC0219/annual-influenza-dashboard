@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"><meta name="theme-color" content="#f3f0e7">
-<title>流感的季节 · 流感观测站</title><link rel="icon" href="data:,"><link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<title>流感的季节 · 流感观测站</title><link rel="icon" href="data:,"><link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/refinement.css') }}">
 </head><body data-page="overview">
 <svg class="icon-definitions" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
 <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
@@ -11,13 +11,14 @@
 <symbol id="i-data" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 4 18 4 18 0V5M3 12c0 4 18 4 18 0"/></symbol>
 <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></symbol>
 </defs></svg>
+<a class="skip-link" href="#main-content">跳至观测内容</a>
 <div class="workspace">
 <header class="site-header">
   <a class="brand" href="#overview" aria-label="流感观测站首页"><span class="brand-mark">观</span><span>流感观测站<small>THE INFLUENZA OBSERVATORY</small></span></a>
   <nav aria-label="主要功能"><a href="#overview" data-page="overview" class="active">季候图谱<sup>01</sup></a><a href="#analysis" data-page="analysis">时间与人群<sup>02</sup></a><a href="#forecast" data-page="forecast">趋势推演<sup>03</sup></a><a href="#data" data-page="data">数据档案<sup>04</sup></a></nav>
   <button class="command-trigger" id="commandOpen" aria-haspopup="dialog">快速探索 <kbd>Ctrl K</kbd></button>
 </header>
-<main>
+<main id="main-content" tabindex="-1">
 <div class="issue-line"><span><i></i> PUBLIC HEALTH / FIELD NOTES <b id="pageNumber">01</b><span id="pageLabel">季候图谱</span></span><span><span class="dataset-badge" id="datasetKind">读取观测记录</span><span id="today" class="mono"></span></span></div>
 <div class="opening-spread">
   <section class="page-intro"><div class="eyebrow">OBSERVING THE INVISIBLE</div><h1 id="pageTitle">流感的<br>季节<span>。</span></h1><p id="pageDescription">季节循环，流感起伏。<br>将五年的观测记录，展开为一幅时间的图谱。</p><div class="hero-readout"><span id="heroRate">—</span><span><b id="heroRateLabel">年度 ILI 比例</b><small id="heroScope">全国 · 全部年龄</small></span></div><div class="signal-summary" id="signalSummary" aria-label="统计探索结果"><div><span>12 个月滞后相关</span><strong id="signalCorrelation">—</strong></div><div><span>稳健月度斜率</span><strong id="signalTrend">—</strong></div><div><span>季节形态近邻</span><strong id="signalNeighbor">—</strong></div><p id="signalNote">以统计方法，辨认时间中的规律。</p></div><div class="intro-actions"><button class="mobile-explore" id="mobileExplore">进入三维观测 <span aria-hidden="true">↗</span></button><a href="#analysis" class="explore-link">走进数据深处 <span>↗</span></a><button class="text-button" id="exportReport">导出观测手记 ↓</button></div></section>
