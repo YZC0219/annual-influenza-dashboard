@@ -25,7 +25,7 @@ function harness(options = {}) {
     const node = {
       id, style: {setProperty(name, value) { this[name] = String(value); },
         getPropertyValue(name) { return this[name] || ''; }},
-      dataset: {}, children: [], value: '', hidden: false, disabled: false,
+      dataset: {}, children: [], value: '', hidden: false, disabled: false, isConnected: true,
       classList: {add(name) { classes.add(name); }, remove(name) { classes.delete(name); },
         toggle(name, force) { const add = force === undefined ? !classes.has(name) : force;
           if (add) classes.add(name); else classes.delete(name); return add; },
@@ -131,6 +131,8 @@ function harness(options = {}) {
       coverage: {observed: 12}, anomalies: []}};
   }
   return {api, state, element, workers, observers, intervals, location, payload, response, animations,
+    focused() { return document.activeElement; },
+    keydown(key, extra = {}) { const event = Object.assign({key, defaultPrevented:false, preventDefault() { this.defaultPrevented=true; }}, extra);documentEvents.get('keydown')(event);return event; },
     finishFade() { const animation=animations.findLast(item=>!item.cancelled&&typeof item.onfinish==='function');if(animation)animation.onfinish(); },
     currentRequest() { return workers[0].sent.at(-1).id; },
     visibility(hidden) { document.hidden = hidden; documentEvents.get('visibilitychange')(); },
@@ -392,6 +394,46 @@ test('WebGL loss during a year dissolve settles the latest year into the SVG fal
   h.api.changeYear('2023',()=>h.api.update(h.payload(2023)));h.ready(false);
   assert.equal(h.api.getState().mode,'paper');assert.equal(h.state.paper.selectedYear,'2023');
   assert(h.animations.every(a=>a.cancelled));assert.equal(h.element('specimenMount').style.opacity,'');
+});
+
+test('Quick Explore owns Escape and Tab above an expanded scene', () => {
+  const h=harness();h.api.update(h.payload(2025));
+  h.element('sceneExpand').focus();h.element('sceneExpand').dispatch('click');
+  assert(h.element('atlasSection').classList.contains('is-expanded'));
+  h.keydown('k',{ctrlKey:true});
+  assert(h.element('commandDialog').open);
+  for(const key of ['Escape','Tab']){
+    assert.equal(h.keydown(key).defaultPrevented,false);
+    assert(h.element('atlasSection').classList.contains('is-expanded'));
+  }
+  // Native dialog handles Escape without the scene cancelling its default action.
+  h.element('commandDialog').close();
+  assert.equal(h.keydown('Escape').defaultPrevented,true);
+  assert(!h.element('atlasSection').classList.contains('is-expanded'));
+});
+
+test('closing mobile immersive view returns focus to the entry button', () => {
+  const h=harness();h.api.update(h.payload(2025));
+  const entry=h.element('mobileExplore');entry.focus();entry.dispatch('click');
+  assert.equal(h.focused(),h.element('sceneExpand'));
+  h.element('sceneExpand').dispatch('click');
+  assert.equal(h.focused(),entry);
+  assert(!h.element('atlasSection').classList.contains('is-expanded'));
+});
+
+test('leaving overview closes immersive view without stealing navigation focus', () => {
+  const h=harness();h.api.update(h.payload(2025));
+  const entry=h.element('mobileExplore');entry.focus();entry.dispatch('click');
+  const navigation=h.element('analysisNavigation');navigation.focus();
+  h.api.setActive(false);
+  assert.equal(h.focused(),navigation);
+  assert(!h.element('atlasSection').classList.contains('is-expanded'));
+});
+
+test('closing immersive view never focuses a removed opener', () => {
+  const h=harness();h.api.update(h.payload(2025));
+  const entry=h.element('mobileExplore');entry.focus();entry.dispatch('click');entry.isConnected=false;
+  h.keydown('Escape');assert.equal(h.focused(),h.element('sceneExpand'));
 });
 
 let failed = 0;

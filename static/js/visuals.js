@@ -4,15 +4,47 @@
 
   var instances = Object.create(null);
   var colors = {
-    mint: '#476c56', amber: '#b75a48', text: '#83937b', bright: '#3d5b42',
+    mint: '#476c56', amber: '#b75a48', text: '#596f5e', bright: '#3d5b42',
     line: '#c9d2be', muted: '#9db09a', surface: '#f3f0e7'
   };
   var camera = {
     alpha: 30, beta: 25, distance: 155, minDistance: 105, maxDistance: 270,
     rotateSensitivity: 1, zoomSensitivity: 1, panSensitivity: 0,
-    autoRotate: false, animation: true, animationDurationUpdate: 800
+    autoRotate: false, animation: false, animationDurationUpdate: 0
   };
   var webglAvailable;
+  var motionQuery = typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  var reducedMotion = !!(motionQuery && motionQuery.matches);
+
+  function motionSettings() {
+    return {animation: !reducedMotion, animationDurationUpdate: reducedMotion ? 0 : 800};
+  }
+
+  function applyMotion(option) {
+    Object.assign(option, motionSettings());
+    (option.series || []).forEach(function (series) { Object.assign(series, motionSettings()); });
+    if (option.grid3D) {
+      // ECharts GL keeps earlier OrbitControl animators alive after immediate updates.
+      // Keep programmatic camera changes static; manual rotation and zoom remain available.
+      option.grid3D.viewControl = Object.assign({}, option.grid3D.viewControl, {animation: false, animationDurationUpdate: 0});
+    }
+    return option;
+  }
+
+  function updateMotion(event) {
+    reducedMotion = !!event.matches;
+    Object.keys(instances).forEach(function (key) {
+      var record = instances[key];
+      if (record.chart.isDisposed()) return;
+      var option = {series: (record.chart.getOption().series || []).map(function (series) { return {id: series.id}; })};
+      if (record.name === 'matrix' && !record.fallback) option.grid3D = {};
+      record.chart.setOption(applyMotion(option));
+    });
+  }
+  if (motionQuery) {
+    if (typeof motionQuery.addEventListener === 'function') motionQuery.addEventListener('change', updateMotion);
+    else if (typeof motionQuery.addListener === 'function') motionQuery.addListener(updateMotion);
+  }
 
   function escapeHtml(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
@@ -141,7 +173,31 @@
   // Leave room for axis labels on portrait screens; reset uses the same framing.
   function fittedMatrixCamera(element) {
     var width = element ? element.clientWidth : 800;
-    return Object.assign({}, camera, {distance: width < 480 ? 210 : width < 640 ? 180 : camera.distance});
+    var distance = width < 480 ? 210 : width < 640 ? 180 : camera.distance;
+    var ratio = distance / camera.distance;
+    return Object.assign({}, camera, {
+      distance: distance, minDistance: camera.minDistance * ratio, maxDistance: camera.maxDistance * ratio
+    });
+  }
+
+  function refitMatrix(record) {
+    if (record.name !== 'matrix' || record.fallback) return;
+    var fitted = fittedMatrixCamera(record.element);
+    if (record.fitDistance && record.fitDistance !== fitted.distance) {
+      var grid = record.chart.getOption().grid3D;
+      var current = grid && grid[0] && grid[0].viewControl;
+      var ratio = current && number(current.distance) != null ? current.distance / record.fitDistance : 1;
+      var distance = Math.max(fitted.minDistance, Math.min(fitted.maxDistance, fitted.distance * ratio));
+      // Settle layout changes immediately; an interpolated distance would compound on rapid resizes.
+      // Patch distance only so user rotation and zoom relative to available space survive.
+      record.chart.setOption({grid3D: {viewControl: {
+        animation: false, animationDurationUpdate: 0,
+        distance: distance, minDistance: fitted.minDistance, maxDistance: fitted.maxDistance
+      }}, xAxis3D: {name: record.element.clientWidth < 480 ? '' : '地区'},
+        yAxis3D: {name: record.element.clientWidth < 480 ? '' : '年度'},
+        zAxis3D: {name: record.element.clientWidth < 480 ? 'ILI%' : 'ILI（%）'}});
+    }
+    record.fitDistance = fitted.distance;
   }
 
   function matrix(payload, initial, element) {
@@ -154,6 +210,7 @@
     };
     option.xAxis3D = axis3D('地区', payload.regions || []);
     option.yAxis3D = axis3D('年度', payload.years || []);
+    option.yAxis3D.nameGap = 42;
     option.zAxis3D = axis3D('ILI（%）');
     if (element && element.clientWidth < 480) {
       option.xAxis3D.name = ''; option.yAxis3D.name = ''; option.zAxis3D.name = 'ILI%';
@@ -221,7 +278,7 @@
       itemStyle: {borderColor: '#f3f0e7', borderWidth: 3, borderRadius: 1},
       label: {show: x.length <= 12, color: '#35513b', fontSize: 12,
         formatter: function (point) { return number(point.value[2]).toFixed(1); }},
-      emphasis: {itemStyle: {borderColor: colors.mint, borderWidth: 2}, label: {color: '#ffffff'}}
+      emphasis: {itemStyle: {borderColor: colors.mint, borderWidth: 2}, label: {color: colors.bright}}
     }];
     return option;
   }
@@ -381,14 +438,15 @@
     else if (name === 'age' || name === 'rank') option = horizontalBars(payload, name === 'age');
     else option = forecast(payload);
     try {
-      record.chart.setOption(option, {replaceMerge: ['series'], lazyUpdate: false});
+      record.chart.setOption(applyMotion(option), {replaceMerge: ['series'], lazyUpdate: false});
     } catch (error) {
       if (name !== 'matrix') throw error;
       record.chart.dispose();
       record.chart = window.echarts.init(element, null, {renderer: 'canvas'});
       record.fallback = true;
-      record.chart.setOption(heatmap(payload, true), {replaceMerge: ['series'], lazyUpdate: false});
+      record.chart.setOption(applyMotion(heatmap(payload, true)), {replaceMerge: ['series'], lazyUpdate: false});
     }
+    refitMatrix(record);
     if (record.fallback && !record.note) fallbackNote(record, payload);
     bindInteraction(record, payload);
     return record.chart;
@@ -397,7 +455,10 @@
   function resize() {
     Object.keys(instances).forEach(function (key) {
       var record = instances[key];
-      if (!record.chart.isDisposed() && record.element.clientWidth && record.element.clientHeight) record.chart.resize();
+      if (!record.chart.isDisposed() && record.element.clientWidth && record.element.clientHeight) {
+        record.chart.resize();
+        refitMatrix(record);
+      }
     });
   }
 
@@ -414,7 +475,9 @@
     Object.keys(instances).forEach(function (key) {
       var record = instances[key];
       if (record.name === 'matrix' && !record.fallback && !record.chart.isDisposed()) {
-        record.chart.setOption({grid3D: {viewControl: fittedMatrixCamera(record.element)}});
+        var fitted = fittedMatrixCamera(record.element);
+        record.chart.setOption({grid3D: {viewControl: fitted}});
+        record.fitDistance = fitted.distance;
       }
     });
   }

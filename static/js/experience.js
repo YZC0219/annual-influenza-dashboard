@@ -8,7 +8,7 @@
   var mode = ['corolla','strata','orbit','paper'].indexOf(query.get('scene')) >= 0 ? query.get('scene') : 'corolla';
   var month = Math.round(Math.max(0, Math.min(12, Number(query.get('month')) || 0)));
   var active = true, inView = true, available = null, playing = false, playTimer = null, toastTimer = null, visibilityObserver = null;
-  var expanded = false, commandIndex = 0, visibleCommands = [], lastCommands = [];
+  var expanded = false, expandedOpener = null, commandIndex = 0, visibleCommands = [], lastCommands = [];
   var motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)'), reduced = motionQuery.matches;
   var timelineReady = false, readingAnimations = [];
   var dissolveAnimations = [], dissolveTargets = [], pendingChange = null, dissolveVersion = 0, applyingChange = false;
@@ -150,10 +150,13 @@
     last=payload;byId('specimenMount').style.visibility='';initRenderer();if(controller&&available!==false){controller.update(payload);controller.setMonth(month||null);}yearsLegend();applyMode();setMonth(month,{immediate:true});inspect();analyze();
   }
   function clear() { finishDissolve(false);last=null;requestId++;stopPlay();settleTimeline();if(window.FluAtlas)FluAtlas.clear();if(controller)controller.setActive(false);byId('specimenMount').style.visibility='hidden';byId('sceneYears').replaceChildren();delete byId('sceneYears').dataset.years;text('pointValue','—');text('pointDate','等待数据');text('pointCompare','');text('signalCorrelation','—');text('signalTrend','—');text('signalNeighbor','—');text('signalNote','等待观测数据…');syncSound(); }
-  function setActive(value) { if(!value)finishDissolve(true);active=!!value;byId('specimenMount').style.visibility=last?'':'hidden';if(!active){stopPlay();settleTimeline();if(expanded)toggleExpanded(false);}if(controller)controller.setActive(canRender());if(window.FluSoundPanel)window.FluSoundPanel.setPageActive(active); }
-  function toggleExpanded(force) {
-    expanded=typeof force==='boolean'?force:!expanded;byId('atlasSection').classList.toggle('is-expanded',expanded);document.body.classList.toggle('scene-is-expanded',expanded);
+  function setActive(value) { if(!value)finishDissolve(true);active=!!value;byId('specimenMount').style.visibility=last?'':'hidden';if(!active){stopPlay();settleTimeline();if(expanded)toggleExpanded(false,false);}if(controller)controller.setActive(canRender());if(window.FluSoundPanel)window.FluSoundPanel.setPageActive(active); }
+  function toggleExpanded(force,restoreFocus) {
+    var next=typeof force==='boolean'?force:!expanded;if(next===expanded)return;
+    if(next)expandedOpener=document.activeElement;
+    expanded=next;byId('atlasSection').classList.toggle('is-expanded',expanded);document.body.classList.toggle('scene-is-expanded',expanded);
     byId('sceneExpand').setAttribute('aria-label',expanded?'退出沉浸查看':'放大图谱');byId('sceneExpand').textContent=expanded?'×':'⤢';if(controller)requestAnimationFrame(function(){controller.resize();});
+    if(!expanded){var opener=expandedOpener;expandedOpener=null;if(restoreFocus!==false&&opener&&opener.isConnected&&!opener.disabled&&opener.getBoundingClientRect().height>0&&typeof opener.focus==='function')opener.focus();}
   }
   function download(filename,url) { var a=document.createElement('a');a.download=filename;a.href=url;document.body.appendChild(a);a.click();a.remove(); }
   function framedImage(data, snapshot) {
@@ -183,7 +186,7 @@
   byId('commandOpen').addEventListener('click',openCommands);byId('commandClose').addEventListener('click',function(){byId('commandDialog').close();});byId('commandSearch').addEventListener('input',drawCommands);
   byId('commandDialog').addEventListener('click',function(event){if(event.target===this){var rect=this.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)this.close();}});
   byId('commandSearch').addEventListener('keydown',function(event){if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();commandIndex=Math.max(0,Math.min(visibleCommands.length-1,commandIndex+(event.key==='ArrowDown'?1:-1)));Array.from(byId('commandResults').children).forEach(function(b,i){b.classList.toggle('is-current',i===commandIndex);if(i===commandIndex)b.scrollIntoView({block:'nearest'});});}else if(event.key==='Enter'&&visibleCommands[commandIndex]){event.preventDefault();byId('commandDialog').close();visibleCommands[commandIndex].run();}});
-  document.addEventListener('keydown',function(event){if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();openCommands();}if(event.key==='Escape'&&expanded){event.preventDefault();toggleExpanded(false);}if(event.key==='Tab'&&expanded){var elements=Array.from(byId('atlasSection').querySelectorAll('button:not(:disabled),input:not(:disabled),[tabindex="0"]')).filter(function(e){return e.getBoundingClientRect().height>0;});if(elements.length&&event.shiftKey&&document.activeElement===elements[0]){event.preventDefault();elements[elements.length-1].focus();}else if(elements.length&&!event.shiftKey&&document.activeElement===elements[elements.length-1]){event.preventDefault();elements[0].focus();}}});
+  document.addEventListener('keydown',function(event){if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();openCommands();}if(byId('commandDialog').open)return;if(event.key==='Escape'&&expanded){event.preventDefault();toggleExpanded(false);}if(event.key==='Tab'&&expanded){var elements=Array.from(byId('atlasSection').querySelectorAll('button:not(:disabled),input:not(:disabled),[tabindex="0"]')).filter(function(e){return e.getBoundingClientRect().height>0;});if(elements.length&&event.shiftKey&&document.activeElement===elements[0]){event.preventDefault();elements[elements.length-1].focus();}else if(elements.length&&!event.shiftKey&&document.activeElement===elements[elements.length-1]){event.preventDefault();elements[0].focus();}}});
   document.addEventListener('visibilitychange',function(){if(document.hidden){finishDissolve(true);stopPlay();settleTimeline();}if(controller)controller.setActive(canRender());});
   function motionChanged(event){reduced=event.matches;if(reduced){finishDissolve(true);stopPlay();cancelReadingAnimations();setMonth(month,{immediate:true});}byId('scenePlay').disabled=mode==='paper'||reduced;}
   if(typeof motionQuery.addEventListener==='function')motionQuery.addEventListener('change',motionChanged);
