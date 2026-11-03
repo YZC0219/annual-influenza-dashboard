@@ -3,7 +3,7 @@
   'use strict';
   var PALETTE = ['#31594b', '#88a99c', '#c3a49e', '#b99b62', '#b75a48', '#6d8085', '#958a6d', '#8b7581'];
   var MODES = ['corolla', 'strata', 'orbit'], PI = Math.PI, SHADOW_SIZE = 1024;
-  var PAPER = [243 / 255, 240 / 255, 231 / 255], DURATION = 800, MONTH_DURATION = 650;
+  var PAPER = [243 / 255, 240 / 255, 231 / 255], DURATION = 800, MONTH_DURATION = 650, RIDGE_HEIGHT = 1.35;
 
   function mix(a, b, t) { return a + (b - a) * t; }
   function clamp(value, low, high) { return Math.max(low, Math.min(high, value)); }
@@ -113,6 +113,7 @@
     uniform mat4 uLightVP;
     uniform sampler2D uShadow;
     uniform float uIsFloor;
+    uniform float uStrata;
     uniform float uOpacity;
     uniform float uSelectedYear;
     uniform float uMonthWeights[12];
@@ -139,7 +140,7 @@
       vec3 albedo = pow(clamp(vColor, 0.0, 1.0), vec3(2.2));
       if (uIsFloor > 0.5) {
         float grain = fract(sin(dot(floor(vWorld.xz * 180.0), vec2(12.9898, 78.233))) * 43758.5453);
-        vec3 paper = albedo * (0.993 + grain * 0.007) * mix(0.76, 1.0, shadow);
+        vec3 paper = albedo * (0.993 + grain * 0.007) * mix(mix(0.76, 0.92, uStrata), 1.0, shadow);
         outColor = vec4(pow(paper, vec3(1.0/2.2)), 1.0);
         return;
       }
@@ -148,17 +149,18 @@
       int monthA = int(floor(monthCoordinate)), monthB = min(monthA + 1, 11);
       float focused = mix(uMonthWeights[monthA], uMonthWeights[monthB], fract(monthCoordinate));
       float hovered = abs(vMeta.w - uHover) < 0.1 ? 1.0 : 0.0;
-      albedo = mix(pow(vec3(0.88, 0.90, 0.85), vec3(2.2)), albedo, (0.64 + 0.36 * selected) * (0.55 + 0.45 * focused));
+      albedo = mix(pow(vec3(0.88, 0.90, 0.85), vec3(2.2)), albedo, (mix(0.64, 0.85, uStrata) + mix(0.36, 0.15, uStrata) * selected) * (0.55 + 0.45 * focused));
       albedo = mix(albedo, pow(vec3(0.72, 0.31, 0.23), vec3(2.2)), hovered * 0.18);
       vec3 H = normalize(V + L);
       float nv = max(dot(N, V), 0.001), nl = max(dot(N, L), 0.0), nh = max(dot(N, H), 0.0);
-      float roughness = 0.47, a = roughness * roughness, a2 = a * a;
+      float roughness = mix(0.47, 0.88, uStrata), a = roughness * roughness, a2 = a * a;
       float denominator = nh * nh * (a2 - 1.0) + 1.0;
       float D = a2 / max(3.141592654 * denominator * denominator, 0.001);
       float k = (roughness + 1.0) * (roughness + 1.0) / 8.0;
       float G = nv / (nv * (1.0-k) + k) * nl / max(nl * (1.0-k) + k, 0.001);
       vec3 F = vec3(0.045) + vec3(0.955) * pow(1.0 - max(dot(V, H), 0.0), 5.0);
       vec3 specular = D * G * F / max(4.0 * nv * max(nl, 0.001), 0.001);
+      specular *= mix(1.0, 0.18, uStrata);
       vec3 diffuse = (vec3(1.0) - F) * albedo / 3.141592654;
       vec3 light = (diffuse + specular) * nl * 2.35 * mix(0.40, 1.0, shadow);
       light += albedo * (0.62 + 0.07 * max(N.y, 0.0));
@@ -267,10 +269,10 @@
       available = true; canvas.hidden = false; labels.hidden = false;
     }
 
-    function yearSpacing() { return Math.min(0.64, 3.6 / Math.max(1, years.length - 1)); }
+    function yearSpacing() { return Math.min(0.92, 4.6 / Math.max(1, years.length - 1)); }
     function layout(record, nextMode, yearCount) {
       var normalized = record.value / scaleMax, zero = record.value === 0;
-      if (nextMode === 'strata') return {position: [(record.month - 5.5) * 0.48 - 0.05, normalized * 1.75 + 0.035, (record.yearIndex - (yearCount - 1) / 2) * yearSpacing()], shape: [zero ? 0.055 : 0.10, Math.min(zero ? 0.025 : 0.045, yearSpacing() * 0.20), zero ? 0.018 : 0.075, 0]};
+      if (nextMode === 'strata') return {position: [(record.month - 5.5) * 0.48 - 0.05, normalized * RIDGE_HEIGHT + 0.035, (record.yearIndex - (yearCount - 1) / 2) * yearSpacing()], shape: [zero ? 0.055 : 0.10, Math.min(zero ? 0.025 : 0.045, yearSpacing() * 0.20), zero ? 0.018 : 0.075, 0]};
       if (nextMode === 'orbit') {
         var time = (record.yearIndex * 12 + record.month) / Math.max(1, yearCount * 12 - 1), angle = time * PI * 4.2 - PI / 2, radius = 1.20 + time * 1.65;
         return {position: [Math.cos(angle) * radius, normalized * 1.55 + 0.035, Math.sin(angle) * radius], shape: [zero ? 0.055 : 0.16 + normalized * 0.10, zero ? 0.025 : 0.065, zero ? 0.018 : 0.11, angle + PI / 2]};
@@ -288,20 +290,45 @@
         instances.set(record.fromPosition.concat(record.toPosition, record.fromShape, record.toShape, record.color, [record.month, record.yearIndex, record.value, index]), index * 21);
       });
       gl.bindBuffer(gl.ARRAY_BUFFER, gpu.instanceBuffer); gl.bufferData(gl.ARRAY_BUFFER, instances, gl.DYNAMIC_DRAW);
-      var ridge = [], byKey = Object.create(null); records.forEach(function (record) { byKey[record.key] = record; });
-      function vertex(record, x, fraction, side) {
-        var z = (record.yearIndex - (years.length - 1) / 2) * yearSpacing() + side * Math.min(0.035, yearSpacing() * 0.24);
-        return [x, 0.025 + record.strataFrom * fraction, z, x, 0.025 + record.strataTo * fraction, z].concat(record.color, [record.month, record.yearIndex, record.value, record.pickIndex]);
+      var ridge = [], byKey = Object.create(null), alongSteps = 12, acrossSteps = 12;
+      records.forEach(function (record) { byKey[record.key] = record; });
+      gpu.ridgeSpanCount = 0;
+      function slope(a, b) { return a * b <= 0 ? 0 : 2 * a * b / (a + b); }
+      // Shape-preserving cubic: exact monthly endpoints, no overshoot or bridges across missing months.
+      function height(left, right, field, t) {
+        var previous = byKey[left.year + ':' + (left.month - 1)], next = byKey[right.year + ':' + (right.month + 1)];
+        var a = left[field], b = right[field], delta = b - a;
+        var m0 = previous ? slope(a - previous[field], delta) : delta;
+        var m1 = next ? slope(delta, next[field] - b) : delta;
+        var t2 = t * t, t3 = t2 * t;
+        return clamp((2*t3-3*t2+1)*a + (t3-2*t2+t)*m0 + (-2*t3+3*t2)*b + (t3-t2)*m1, Math.min(a,b), Math.max(a,b));
       }
-      function triangle(a, b, c) { ridge.push.apply(ridge, a); ridge.push.apply(ridge, b); ridge.push.apply(ridge, c); }
-      function quad(a, b, c, d) { triangle(a, b, c); triangle(a, c, d); }
+      function vertex(left, right, t, across, ground) {
+        var x = (left.month + t - 5.5) * 0.48;
+        var z = (left.yearIndex - (years.length - 1) / 2) * yearSpacing() + across * Math.min(0.39, yearSpacing() * 0.42);
+        var profile = ground ? 0 : Math.pow(Math.max(0, Math.cos(across * PI / 2)), 0.9);
+        var record = t < 0.5 ? left : right;
+        return [x, 0.025 + height(left,right,'strataFrom',t)*profile, z,
+          x, 0.025 + height(left,right,'strataTo',t)*profile, z].concat(record.color, [left.month+t, left.yearIndex, mix(left.value,right.value,t), record.pickIndex]);
+      }
+      function triangle(a,b,c) { ridge.push.apply(ridge,a);ridge.push.apply(ridge,b);ridge.push.apply(ridge,c); }
+      function quad(a,b,c,d) { triangle(a,b,c);triangle(a,c,d); }
       years.forEach(function (year) {
-        for (var month = 0; month < 11; month++) {
-          var left = byKey[year + ':' + month], right = byKey[year + ':' + (month + 1)];
-          if (!left || !right) continue; // Missing months break both the ridge and its shadow.
-          var xa = (month - 5.5) * 0.48, xb = xa + 0.48;
-          for (var side = -1; side <= 1; side += 2) quad(vertex(left, xa, 0, side), vertex(right, xb, 0, side), vertex(right, xb, 1, side), vertex(left, xa, 1, side));
-          quad(vertex(left, xa, 1, -1), vertex(right, xb, 1, -1), vertex(right, xb, 1, 1), vertex(left, xa, 1, 1));
+        for (var month=0; month<11; month++) {
+          var left=byKey[year+':'+month], right=byKey[year+':'+(month+1)];
+          if(!left||!right)continue;
+          gpu.ridgeSpanCount++;
+          for(var i=0;i<alongSteps;i++) for(var j=0;j<acrossSteps;j++) {
+            var t0=i/alongSteps,t1=(i+1)/alongSteps,c0=j/acrossSteps*2-1,c1=(j+1)/acrossSteps*2-1;
+            quad(vertex(left,right,t0,c0),vertex(left,right,t0,c1),vertex(left,right,t1,c1),vertex(left,right,t1,c0));
+          }
+          [0,1].forEach(function(t){
+            if((t===0&&byKey[year+':'+(month-1)])||(t===1&&byKey[year+':'+(month+2)]))return;
+            for(var j=0;j<acrossSteps;j++) {
+              var c0=j/acrossSteps*2-1,c1=(j+1)/acrossSteps*2-1;
+              quad(vertex(left,right,t,c0,true),vertex(left,right,t,c1,true),vertex(left,right,t,c1),vertex(left,right,t,c0));
+            }
+          });
         }
       });
       gpu.ridgeCount = ridge.length / 13; gl.bindBuffer(gl.ARRAY_BUFFER, gpu.ridgeBuffer); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ridge), gl.DYNAMIC_DRAW);
@@ -316,7 +343,7 @@
         var target = layout(record, mode, years.length), prior = old[record.key];
         record.fromPosition = prior ? prior.position : target.position.slice(); record.toPosition = target.position;
         record.fromShape = prior ? prior.shape : target.shape.slice(); record.toShape = target.shape;
-        record.strataFrom = prior ? prior.strata : record.value / scaleMax * 1.75; record.strataTo = record.value / scaleMax * 1.75;
+        record.strataFrom = prior ? prior.strata : record.value / scaleMax * RIDGE_HEIGHT; record.strataTo = record.value / scaleMax * RIDGE_HEIGHT;
       });
       records = nextRecords; startTime = now; animating = !first && !reduced && records.length > 0;
       if (!active) pausedAt = now;
@@ -340,6 +367,8 @@
     }
     function setMode(nextMode) {
       if (disposed || MODES.indexOf(nextMode) < 0 || nextMode === mode) return;
+      if(nextMode==='strata'&&Math.abs(camera.yaw-0.28)<0.001&&Math.abs(camera.pitch-0.86)<0.001){camera.yaw=0.18;camera.pitch=1.05;}
+      else if(mode==='strata'&&Math.abs(camera.yaw-0.18)<0.001&&Math.abs(camera.pitch-1.05)<0.001){camera.yaw=0.28;camera.pitch=0.86;}
       mode = nextMode; fitCamera(false); hovered = null; notify(callbacks.onHover, null); transition(records.map(function (record) { return Object.assign({}, record); }), false);
     }
     function fitDistance() {
@@ -352,8 +381,8 @@
       var marginX = Math.max(0.18, 1 - padX * 2 / width), marginY = Math.max(0.18, 1 - padY * 2 / height);
       var focal = 1 / Math.tan(42 * PI / 360), required = 8.6;
       if (mode === 'strata') {
-        [-3.65, 3.05].forEach(function (x) { [0.025, 2.03].forEach(function (y) {
-          [-1, 1].forEach(function (side) { points.push([x, y, side * ((years.length - 1) / 2 * yearSpacing() + 0.55)]); });
+        [-3.30, 3.45].forEach(function (x) { [0.025, RIDGE_HEIGHT + 0.28].forEach(function (y) {
+          [-1, 1].forEach(function (side) { points.push([x, y, side * ((years.length - 1) / 2 * yearSpacing() + 1.05)]); });
         }); });
       } else if (mode === 'corolla' && width >= 480 && records.length) {
         records.forEach(function (record) {
@@ -434,20 +463,24 @@
         for (var month = 0; month < 12; month++) { var a = month / 12 * PI * 2 - PI / 2; label((month + 1) + '月', [Math.cos(a) * 3.53, 0.03, Math.sin(a) * 3.53], (small ? 11 : 13) + 'px "Microsoft YaHei",sans-serif', null, true); }
         label(selectedYear || '—', [0, 0.07, 0], (small ? 28 : 32) + 'px Georgia,serif', '#253d36');
       } else if (mode === 'strata') {
-        var backZ = -(years.length - 1) / 2 * yearSpacing() - 0.30, axisX = -3.28;
-        line([[axisX, 0.025, backZ], [axisX, 1.775, backZ]], 'rgba(65,94,76,.34)');
+        var backZ = -(years.length - 1) / 2 * yearSpacing() - 0.30, axisX = 3.12;
+        line([[axisX, 0.025, backZ], [axisX, RIDGE_HEIGHT + 0.025, backZ]], 'rgba(65,94,76,.34)');
         [0, 0.5, 1].forEach(function (fraction) {
-          var level = 0.025 + fraction * 1.75, p = project([axisX, level, backZ]);
-          line([[axisX, level, backZ], [2.76, level, backZ]], 'rgba(65,94,76,' + (fraction ? '.14' : '.22') + ')', fraction > 0);
+          var level = 0.025 + fraction * RIDGE_HEIGHT, p = project([axisX, level, backZ]);
+          line([[axisX, level, backZ], [-2.76, level, backZ]], 'rgba(65,94,76,' + (fraction ? '.14' : '.22') + ')', fraction > 0);
           line([[axisX - 0.06, level, backZ], [axisX + 0.06, level, backZ]], 'rgba(65,94,76,.36)');
-          if (p && p.visible && p.x > 27 && p.y > 14 && p.y < height - 14) {
-            ctx.save(); ctx.font = fontSize + 'px Consolas,monospace'; ctx.textAlign = 'right'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(243,240,231,.92)'; ctx.fillStyle = '#61796a';
-            var text = Number((scaleMax * fraction).toFixed(3)).toString(); ctx.strokeText(text, p.x - 8, p.y); ctx.fillText(text, p.x - 8, p.y); ctx.restore();
+          if (p && p.visible && p.x < width - 27 && p.y > 14 && p.y < height - 14) {
+            ctx.save(); ctx.font = fontSize + 'px Consolas,monospace'; ctx.textAlign = 'left'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(243,240,231,.92)'; ctx.fillStyle = '#61796a';
+            var text = Number((scaleMax * fraction).toFixed(3)).toString(); ctx.strokeText(text, p.x + 8, p.y); ctx.fillText(text, p.x + 8, p.y); ctx.restore();
           }
         });
-        label('ILI%', [axisX, 2.02, backZ], fontSize + 'px Consolas,monospace', '#61796a');
-        for (var month = 0; month < 12; month++) label((month + 1) + '月', [(month - 5.5) * 0.48, 0.03, (years.length - 1) / 2 * yearSpacing() + 0.40]);
+        label('ILI%', [axisX, RIDGE_HEIGHT + 0.27, backZ], fontSize + 'px Consolas,monospace', '#61796a');
+        for (var month = 0; month < 12; month++) label((month + 1) + '月', [(month - 5.5) * 0.48, 0.03, (years.length - 1) / 2 * yearSpacing() + 0.70 + (small&&month%2?0.34:0)], (small?10:12)+'px \"Microsoft YaHei\",sans-serif');
         years.forEach(function (year, yi) { label(year, [-3.02, 0.03, (yi - (years.length - 1) / 2) * yearSpacing()]); });
+        records.filter(function(record){return record.year===selectedYear;}).forEach(function(record){
+          var h=mix(record.strataFrom,record.strataTo,blend), p=project([(record.month-5.5)*0.48,0.035+h,(record.yearIndex-(years.length-1)/2)*yearSpacing()]);
+          if(!p||!p.visible)return;ctx.save();ctx.globalAlpha=0.3+0.7*monthWeights[record.month];ctx.beginPath();ctx.arc(p.x,p.y,small?2.2:2.8,0,PI*2);ctx.fillStyle=PALETTE[record.yearIndex%PALETTE.length];ctx.fill();ctx.lineWidth=1.4;ctx.strokeStyle='#f3f0e7';ctx.stroke();ctx.restore();
+        });
       } else {
         records.filter(function (record) { return record.year === selectedYear; }).forEach(function (record) { var p = mixArray(record.fromPosition, record.toPosition, blend); p[1] += 0.25; label((record.month + 1) + '月', p); });
       }
@@ -459,12 +492,12 @@
       var blend = blendAt(now), strata = mix(strataFrom, strataTo, blend); monthWeights.set(monthMixAt(now)); matrices();
       gl.bindFramebuffer(gl.FRAMEBUFFER, gpu.framebuffer); gl.viewport(0, 0, SHADOW_SIZE, SHADOW_SIZE); gl.clear(gl.DEPTH_BUFFER_BIT);
       gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1.1, 1.0);
-      if (records.length) { use(gpu.leafDepth, lightVP, blend, strata, false); gl.bindVertexArray(gpu.leafVAO); gl.drawElementsInstanced(gl.TRIANGLES, gpu.indexCount, gl.UNSIGNED_SHORT, 0, records.length); }
+      if (records.length && strata < 0.999) { use(gpu.leafDepth, lightVP, blend, strata, false); gl.bindVertexArray(gpu.leafVAO); gl.drawElementsInstanced(gl.TRIANGLES, gpu.indexCount, gl.UNSIGNED_SHORT, 0, records.length); }
       if (strata > 0.001 && gpu.ridgeCount) { use(gpu.ridgeDepth, lightVP, blend, strata, false); gl.bindVertexArray(gpu.ridgeVAO); gl.drawArrays(gl.TRIANGLES, 0, gpu.ridgeCount); }
       gl.disable(gl.POLYGON_OFFSET_FILL); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, canvas.width, canvas.height);
       gl.clearColor(PAPER[0], PAPER[1], PAPER[2], 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, gpu.shadow);
       use(gpu.floor, viewProjection, blend, strata, true); gl.bindVertexArray(gpu.floorVAO); gl.drawArrays(gl.TRIANGLES, 0, 6);
-      if (records.length) { use(gpu.leaf, viewProjection, blend, strata, false); gl.bindVertexArray(gpu.leafVAO); gl.drawElementsInstanced(gl.TRIANGLES, gpu.indexCount, gl.UNSIGNED_SHORT, 0, records.length); }
+      if (records.length && strata < 0.999) { use(gpu.leaf, viewProjection, blend, strata, false); gl.bindVertexArray(gpu.leafVAO); gl.drawElementsInstanced(gl.TRIANGLES, gpu.indexCount, gl.UNSIGNED_SHORT, 0, records.length); }
       if (strata > 0.001 && gpu.ridgeCount) {
         if (strata < 0.999) { gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); }
         use(gpu.ridge, viewProjection, blend, strata, false, strata); gl.bindVertexArray(gpu.ridgeVAO); gl.drawArrays(gl.TRIANGLES, 0, gpu.ridgeCount); gl.depthMask(true); gl.disable(gl.BLEND);
@@ -533,7 +566,7 @@
       if (disposed) return;
       try { initialize(); resumeMonth(window.performance.now()); upload(); resize(); info(); } catch (_) { fail('图形上下文恢复失败，请使用二维季候图谱。'); }
     }
-    function reset() { camera = {yaw: 0.28, pitch: 0.86, distance: 8.6}; fitCamera(true); schedule(); }
+    function reset() { camera = {yaw: mode==='strata'?0.18:0.28, pitch: mode==='strata'?1.05:0.86, distance: 8.6}; fitCamera(true); schedule(); }
     function setMonth(value, options) {
       if (disposed) return;
       var next = value == null ? null : (Number.isInteger(+value) && +value >= 1 && +value <= 12 ? +value : null);
@@ -576,7 +609,7 @@
     }
     function getState() { return {mode: mode, camera: Object.assign({}, camera), pointCount: records.length, available: available && !disposed,
       animating: (animating || monthAnimating) && active && available, monthAnimating: monthAnimating && active && available,
-      monthMix: Array.from(monthMixAt(window.performance.now())), month: monthFocus, scaleMax: scaleMax, renderer: 'WebGL 2', ridgeVertexCount: gpu ? gpu.ridgeCount || 0 : 0}; }
+      monthMix: Array.from(monthMixAt(window.performance.now())), month: monthFocus, scaleMax: scaleMax, renderer: 'WebGL 2', ridgeVertexCount: gpu ? gpu.ridgeCount || 0 : 0, ridgeSpanCount: gpu ? gpu.ridgeSpanCount || 0 : 0}; }
     var controller = {update: update, setMode: setMode, setMonth: setMonth, reset: reset, setActive: setActive, resize: resize, capture: capture, dispose: dispose, getState: getState};
     canvas.addEventListener('pointerdown', pointerDown); canvas.addEventListener('pointermove', pointerMove); canvas.addEventListener('pointerup', pointerEnd); canvas.addEventListener('pointercancel', pointerEnd); canvas.addEventListener('pointerleave', pointerLeave); canvas.addEventListener('wheel', wheel, {passive: false}); canvas.addEventListener('webglcontextlost', contextLost, false); canvas.addEventListener('webglcontextrestored', contextRestored, false);
     if (motionQuery && typeof motionQuery.addEventListener === 'function') motionQuery.addEventListener('change', motionChanged);

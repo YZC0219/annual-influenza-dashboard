@@ -105,7 +105,8 @@ test('fixed month indexing, valid zero, missing-month ridge breaks and common sc
     {year: '2025', values: Array.from({length: 12}, (_, i) => i)}]});
   const state = f.engine.getState();
   assert.equal(state.pointCount, 23);
-  assert.equal(state.ridgeVertexCount, 360); // (9 + 11) adjacent pairs, 18 vertices each.
+  assert.equal(state.ridgeSpanCount, 20); // 9 + 11 valid adjacent pairs; the missing month remains a gap.
+  assert.equal(state.ridgeVertexCount, 20 * 12 * 12 * 6 + 4 * 12 * 6); // Smooth surfaces and four exposed end caps.
   assert(state.scaleMax < 999); // The 13th month is neither rendered nor used for scaling.
   const instances = f.uploads.filter(values => values.length === 23 * 21).at(-1);
   assert.equal(instances[19], 0);
@@ -127,6 +128,26 @@ test('real instance targets differ between modes, animation pauses, idle RAF sto
   f.tick(450); assert.equal(f.engine.getState().animating, false); assert.equal(f.frames.size, 0);
   f.engine.setMonth(2); assert.equal(f.engine.getState().month, 2);
   f.engine.setMonth(13); assert.equal(f.engine.getState().month, null);
+  f.engine.dispose();
+});
+
+test('rounded mountain surfaces retain actual monthly heights and do not bridge missing months', () => {
+  const f=fixture({reduced:true}), values=[0,9,1,null,7,5];
+  f.engine.update({years:['2025'],selectedYear:'2025',series:[{year:'2025',values}]});
+  f.engine.setMode('strata');f.tick();
+  const state=f.engine.getState();assert.equal(state.ridgeSpanCount,3);
+  const mesh=f.uploads.findLast(buffer=>buffer.length===state.ridgeVertexCount*13);
+  assert(mesh&&mesh.every(Number.isFinite));
+  let anchor=false;
+  for(let i=0;i<mesh.length;i+=13){
+    const month=mesh[i+9], height=mesh[i+4], z=mesh[i+5];
+    assert(month<=2.00001||month>=3.99999,'the missing third index stays open');
+    const left=Math.floor(month+1e-5),right=Math.ceil(month-1e-5);
+    assert(height>=.025-1e-6);
+    assert(height<=.025+Math.max(values[left]||0,values[right]||0)/state.scaleMax*1.35+1e-5,'no interpolation overshoot');
+    if(Math.abs(month-1)<1e-6&&Math.abs(z)<1e-6&&Math.abs(height-(.025+9/state.scaleMax*1.35))<1e-5)anchor=true;
+  }
+  assert(anchor,'the centre of the mountain passes through the measured monthly height');
   f.engine.dispose();
 });
 
@@ -155,6 +176,7 @@ test('desktop close framing and portrait fitting preserve all month labels', () 
 
 test('strata retains year/month labels and adds 0, midpoint, maximum ILI ticks', () => {
   const f = fixture(); f.engine.update(data()); f.engine.setMode('strata');
+  f.engine.reset();assert.equal(f.engine.getState().camera.pitch,1.05);assert.equal(f.engine.getState().camera.yaw,.18);
   for (const [width, height] of [[900, 650], [360, 540]]) {
     f.root.clientWidth = width; f.root.clientHeight = height;
     f.engine.resize(); f.engine.reset(); f.drawn.length = 0; f.tick();
