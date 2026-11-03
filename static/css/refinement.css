@@ -1,4 +1,53 @@
 /* Editorial refinement. Preserve the paper, botanical palette and seasonal atlas. */
+.csv-studio { border-block: 1px solid var(--line); padding: 12px 0 30px; margin: 24px 0 32px; }
+.csv-intro { color: var(--reading); max-width: 760px; font-size: 13px; line-height: 2; margin: 6px 0 22px; }
+.csv-drop { min-height: 160px; padding: 24px; transition: background-color .2s, border-color .2s; }
+.csv-drop.is-dragging { background: #dce5d5; border-color: var(--ink); }
+.csv-drop .csv-upload-mark { font: 30px var(--mono); margin: 0 0 8px!important; color: var(--ink)!important; }
+.csv-drop strong { font-size: 16px; }
+.csv-drop span:last-of-type { text-align: center; line-height: 1.9; }
+.csv-options { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; padding: 14px 0; color: var(--reading); font-size: 12px; }
+.csv-options label { display: flex; align-items: center; gap: 10px; }
+.csv-options select { min-height: 44px; width: 145px; font-size: 13px; }
+.csv-header-option { min-height: 44px; cursor: pointer; }
+.csv-header-option input { accent-color: var(--ink); width: 18px; height: 18px; }
+.csv-options>span { margin-left: auto; }
+.csv-status { color: var(--reading); font-size: 12px; line-height: 1.9; overflow-wrap: anywhere; }
+.csv-status.is-error { color: #99452e; border-left: 3px solid var(--accent); padding-left: 12px; }
+.csv-result-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding-top: 28px; }
+.csv-result-head h3 { font: 24px/1.7 var(--serif); overflow-wrap: anywhere; }
+.csv-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; }
+.csv-table-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 24px; margin: 20px 0 16px; color: var(--reading); font-size: 12px; }
+.csv-table-tools label { display: flex; align-items: center; gap: 10px; }
+.csv-table-tools input { min-height: 44px; width: 230px; max-width: 100%; font-size: 14px; }
+.csv-table-tools select { width: 80px; min-height: 44px; }
+.csv-table-tools>span { margin-left: auto; }
+.csv-table-scroll { width: 100%; max-height: 600px; overflow: auto; border: 1px solid var(--line); overscroll-behavior: contain; }
+.csv-studio table { background: #f9f7ee; table-layout: fixed; min-width: var(--csv-table-width, 600px); }
+.csv-studio th { position: sticky; top: 0; background: #e4e9dc; z-index: 1; padding: 0; white-space: normal; min-width: 12ch; max-width: 32ch; }
+.csv-studio th:first-child { min-width: 5ch; padding: 12px; }
+.csv-studio th button { width: 100%; text-align: left; padding: 12px 16px; min-height: 48px; background: transparent; border: 0; overflow-wrap: anywhere; color: var(--ink); }
+.csv-studio th button:hover { background: #d7e1ce; }
+.csv-studio th[aria-sort="ascending"],.csv-studio th[aria-sort="descending"] { background: #d7e1ce; }
+.csv-studio td { min-width: 12ch; max-width: 32ch; white-space: pre-wrap; overflow-wrap: anywhere; vertical-align: top; font: 13px/1.9 var(--sans); padding: 12px 16px; color: var(--ink); }
+.csv-studio td:first-child { min-width: 5ch; color: var(--reading); font: 12px/1.9 var(--mono); }
+.csv-studio td.csv-number { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.csv-studio td.csv-empty { color: var(--quiet); }
+.csv-studio tbody tr:nth-child(even) { background: #eef0e5; }
+.csv-studio tbody tr:hover { background: #e3e9da; }
+.csv-studio .pagination { margin-top: 8px; }
+.csv-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.csv-readonly-layout { grid-template-columns: 1fr; }
+@media(max-width:600px) {
+  .csv-options { gap: 4px 16px; }
+  .csv-options>span,.csv-table-tools>span { width: 100%; margin-left: 0; }
+  .csv-result-head h3 { font-size: 22px; }
+  .csv-table-tools input { width: 210px; font-size: 16px; }
+  .csv-result-head>div { min-width: 0; max-width: 100%; }
+  .csv-drop { padding: 22px 16px; }
+  .csv-drop strong { font-size: 15px; }
+  .csv-studio .pagination { flex-direction: column; align-items: flex-start; }
+}
 :root {
   --muted: #61745f;
   --reading: #596f5e;

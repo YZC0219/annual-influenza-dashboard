@@ -21,6 +21,8 @@
   };
   $(function () {
     $('#importForm :input').prop('disabled', true);
+    $('.import-panel').prop('hidden', true);
+    $('.data-top').addClass('csv-readonly-layout');
     $('#importForm').on('submit.demo', function (event) { event.preventDefault(); event.stopImmediatePropagation(); });
     $('#fileName').text('在线演示 · 教学数据快照');
     $('#importStatus').text('在线版可探索、筛选和导出教学数据。导入 CSV 请下载源码并运行 Flask 完整版；在线版不会上传文件。');
