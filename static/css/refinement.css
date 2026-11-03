@@ -1,4 +1,38 @@
 /* Editorial refinement. Preserve the paper, botanical palette and seasonal atlas. */
+body.has-csv-home .opening-spread, body.has-csv-home #status, body.has-csv-home #page-overview>:not(#csvHome) { display: none!important; }
+.csv-home { padding: 18px 0 30px; }
+.csv-home-top { display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid var(--line);padding-bottom:16px; }
+.csv-home-heading { display:flex;align-items:center;justify-content:space-between;gap:24px;padding:32px 0 28px; }
+#csvHomeTitle:focus { outline: none; }
+.csv-home-heading h2 { font:400 clamp(30px,3.2vw,48px)/1.5 var(--serif);overflow-wrap:anywhere; }
+.csv-home-heading p { color:var(--reading);font-size:13px;line-height:2;margin-top:12px;max-width:680px; }
+.csv-home-controls { display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:18px;padding:20px;background:#e4e9dc66;border-block:1px solid var(--line); }
+.csv-home-controls label { min-width:0;display:grid;align-content:start;gap:8px;color:var(--reading);font-size:11px; }
+.csv-home-controls select,.csv-home-controls input { min-height:44px;min-width:0;width:100%;font-size:13px; }
+.csv-home-controls input { border:0;border-bottom:1px solid #b5beb0;padding:7px 0;background:transparent; }
+.csv-home-stats { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:30px 0;gap:24px; }
+.csv-home-stats>div { min-width:0;border-left:1px solid var(--line);padding-left:24px; }
+.csv-home-stats>div:first-child { border:0;padding-left:0; }
+.csv-home-stats span { display:block;color:var(--reading);font-size:12px; }
+.csv-home-stats strong { display:block;font:400 38px/1.6 var(--mono);color:var(--ink);overflow-wrap:anywhere; }
+.csv-home-stats small { display:block;font-size:11px;color:var(--reading);overflow-wrap:anywhere; }
+.csv-home-stats>div:last-child strong { color:var(--accent); }
+.csv-home-grid { display:grid;grid-template-columns:minmax(0,2.3fr) minmax(260px,1fr);gap:36px;border-top:1px solid var(--line);padding-top:24px; }
+.csv-plot-panel { min-width:0; }
+.csv-plot-heading { display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:0 0 12px; }
+.csv-plot-heading h3 { font:24px/1.6 var(--serif);margin-top:6px;overflow-wrap:anywhere; }
+#csvBarChart { width:100%;height:570px;min-width:0; }
+.csv-chart-note { color:var(--reading);font-size:11px;line-height:2;padding:12px 0;border-block:1px solid var(--line); }
+.csv-reading { min-width:0;border-left:1px solid var(--line);padding-left:28px; }
+.csv-reading>h3 { font:28px/1.7 var(--serif);margin:8px 0 18px; }
+#csvNarrative article { padding:18px 0;border-bottom:1px solid var(--line); }
+#csvNarrative article>span { font:11px var(--mono);color:var(--accent); }
+#csvNarrative h3 { font:18px/1.8 var(--serif);margin:8px 0; }
+#csvNarrative p,.csv-reading-foot { color:var(--reading);font-size:13px;line-height:2;overflow-wrap:anywhere; }
+.csv-reading-foot { font-size:11px;padding:20px 0 8px; }
+@media(max-width:1100px){.csv-home-controls{grid-template-columns:repeat(3,minmax(0,1fr))}.csv-home-grid{grid-template-columns:minmax(0,1.8fr) minmax(240px,1fr);gap:24px}}
+@media(max-width:800px){.csv-home-grid{grid-template-columns:1fr}.csv-reading{border-left:0;padding-left:0;border-top:1px solid var(--line);padding-top:24px}.csv-home-heading{flex-wrap:wrap}.csv-home-stats{gap:16px}.csv-home-stats>div{padding-left:16px}.csv-home-stats strong{font-size:30px}}
+@media(max-width:600px){.csv-home-top{flex-wrap:wrap;gap:8px}.csv-home-controls{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:16px}.csv-home-controls select,.csv-home-controls input{font-size:16px}.csv-home-heading{padding-block:24px}.csv-home-heading h2{font-size:30px}.csv-home-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.csv-home-stats>div:last-child{grid-column:1/-1;border-left:0;border-top:1px solid var(--line);padding:16px 0 0}.csv-home-stats strong{font-size:32px}#csvBarChart{height:540px}.csv-plot-heading h3{font-size:22px}}
 .csv-studio { border-block: 1px solid var(--line); padding: 12px 0 30px; margin: 24px 0 32px; }
 .csv-intro { color: var(--reading); max-width: 760px; font-size: 13px; line-height: 2; margin: 6px 0 22px; }
 .csv-drop { min-height: 160px; padding: 24px; transition: background-color .2s, border-color .2s; }

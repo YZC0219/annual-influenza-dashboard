@@ -80,7 +80,7 @@
       byId('csvBody').replaceChildren(fragment);byId('csvCount').textContent='显示 '+filtered.length.toLocaleString('zh-CN')+' / '+model.rows.length.toLocaleString('zh-CN')+' 条 · '+model.headers.length+' 列';byId('csvPage').textContent=page+' / '+pages;byId('csvPrev').disabled=page<=1;byId('csvNext').disabled=page>=pages;byId('csvExport').disabled=!filtered.length;
     }
     async function load(selected){
-      var request=++version;file=selected;model=null;byId('csvResult').hidden=true;
+      var request=++version;file=selected;model=null;byId('csvResult').hidden=true;document.dispatchEvent(new CustomEvent('flu:csv-cleared'));
       if(!selected){studio.setAttribute('aria-busy','false');status('请选择 CSV 文件。');return;}
       byId('csvFileName').textContent=selected.name;studio.setAttribute('aria-busy','true');status('正在读取文件、识别列并自动排版…');
       try{
@@ -91,7 +91,8 @@
         if(request!==version)return;
         model=next;page=1;sort=-1;direction=1;byId('csvSearch').value='';byId('csvResult').hidden=false;
         byId('csvTableTitle').textContent=selected.name.replace(/\.csv$/i,'');render();
-        status('已生成表格 · '+decoded.encoding+' · '+({',':'逗号',';':'分号','\t':'制表符'}[model.delimiter])+'分隔'+(model.uneven?' · '+model.uneven+' 行列数不齐，已补空列并保留全部内容':'')+'。文件仅在当前页面处理，刷新后清除。');
+        document.dispatchEvent(new CustomEvent('flu:csv-loaded',{detail:{model:model,title:byId('csvTableTitle').textContent}}));
+        status('已生成条形图与表格 · '+decoded.encoding+' · '+({',':'逗号',';':'分号','\t':'制表符'}[model.delimiter])+'分隔'+(model.uneven?' · '+model.uneven+' 行列数不齐，已补空列并保留全部内容':'')+'。文件仅在当前页面处理，刷新后清除。');
       }catch(error){if(request===version)status(error instanceof TypeError?'无法解码文件，请尝试切换为 UTF-8 或 GB18030 编码。':error.message,true);}
       finally{if(request===version)studio.setAttribute('aria-busy','false');}
     }
@@ -99,7 +100,7 @@
     byId('csvEncoding').addEventListener('change',function(){if(file)load(file);});byId('csvHeader').addEventListener('change',function(){if(file)load(file);});
     byId('csvSearch').addEventListener('input',function(){page=1;render();});byId('csvPageSize').addEventListener('change',function(){page=1;render();});
     byId('csvPrev').addEventListener('click',function(){if(page>1){page--;render();}});byId('csvNext').addEventListener('click',function(){page++;render();});
-    byId('csvClear').addEventListener('click',function(){version++;file=model=null;byId('csvFile').value='';byId('csvFileName').textContent='选择或拖入 CSV，自动生成表格';byId('csvResult').hidden=true;studio.setAttribute('aria-busy','false');status('已清除表格，可选择新的文件。');});
+    byId('csvClear').addEventListener('click',function(){version++;file=model=null;document.dispatchEvent(new CustomEvent('flu:csv-cleared'));byId('csvFile').value='';byId('csvFileName').textContent='选择或拖入 CSV，在主页生成条形图';byId('csvResult').hidden=true;studio.setAttribute('aria-busy','false');status('已清除表格，可选择新的文件。');});
     byId('csvDrop').addEventListener('dragover',function(e){e.preventDefault();this.classList.add('is-dragging');});
     byId('csvDrop').addEventListener('dragleave',function(){this.classList.remove('is-dragging');});
     byId('csvDrop').addEventListener('drop',function(e){e.preventDefault();this.classList.remove('is-dragging');if(e.dataTransfer.files.length>1){status('请一次导入一个 CSV 文件。',true);return;}load(e.dataTransfer.files[0]);});

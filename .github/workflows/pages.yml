@@ -21,7 +21,7 @@ jobs:
           node-version: '22'
       - run: python -m pip install -r requirements.txt
       - run: python -m unittest discover -s tests -v
-      - run: node tests/test_experience.cjs && node tests/test_specimen_gl.cjs && node tests/test_signal_worker.cjs && node tests/test_soundscape.cjs && node tests/test_visuals.cjs && node tests/test_csv_table.cjs
+      - run: node tests/test_experience.cjs && node tests/test_specimen_gl.cjs && node tests/test_signal_worker.cjs && node tests/test_soundscape.cjs && node tests/test_visuals.cjs && node tests/test_csv_table.cjs && node tests/test_csv_chart.cjs
       - run: python scripts/build_demo.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
