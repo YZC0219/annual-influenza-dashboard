@@ -64,7 +64,7 @@ def build(output):
         (data_dir / f"{name}.json").write_text(json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":")), encoding="utf-8")
     env = Environment(loader=FileSystemLoader(ROOT / "templates"), autoescape=select_autoescape(["html"]))
     env.globals["url_for"] = lambda endpoint, filename: "static/" + filename
-    html = env.get_template("index.html").render()
+    html = env.get_template("index.html").render(student_sid="2024212993", student_name="杨子成")
     marker = '<script src="static/js/charts.js"></script>'
     if marker not in html:
         raise ValueError("Missing application script marker")
